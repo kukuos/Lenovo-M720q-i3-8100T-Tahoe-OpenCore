@@ -1,0 +1,17 @@
+{
+  "upstream": {
+    "name": "upstream-a34973ab.zip",
+    "url": "https://codeload.github.com/Golevka2001/Lenovo-M720Q-OpenCore-EFI/zip/a34973abedbef30738098ec7a852f65aad892339",
+    "sha256": "238ea2d1e0039b337108f64da208822f7cffc368737950c11c10dbe22c0f6bc2"
+  },
+  "opencore": {
+    "name": "OpenCore-1.0.8-RELEASE.zip",
+    "url": "https://github.com/acidanthera/OpenCorePkg/releases/download/1.0.8/OpenCore-1.0.8-RELEASE.zip",
+    "sha256": "2011e8b7216ecb2645d97ea710df965947edd406846e92050b9bc4190be6d27b"
+  },
+  "audio": {
+    "name": "VoodooHDA-v3.6.9-RELEASE-alpha-88f1f24.zip",
+    "url": "https://github.com/CloverHackyColor/VoodooHDA/releases/download/v3.6.9-alpha/VoodooHDA-v3.6.9-RELEASE-alpha-88f1f24.zip",
+    "sha256": "8171e81267775065dc4288e327f74868a03a903716b28a8fa6d8523f5e59d534"
+  }
+}
