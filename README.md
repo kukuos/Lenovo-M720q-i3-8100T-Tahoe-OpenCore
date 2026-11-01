@@ -191,6 +191,50 @@ bash "/Volumes/TAHOE/Restore-USB-Boot.command"
 
 若临时 Shell 后还需要回到原 U 盘 OpenCore，可从独立 Shell 启动 U 盘 FS 对应的 `\EFI\BOOT\BOOTx64-before-shell.efi`。保留 U 盘与桌面的原 EFI 备份。
 
+## 用 AI 助手配置 / 调整 EFI
+
+本仓库的结构适合直接交给 AI 助手（ChatGPT / Claude / DeepSeek 等）做定制。把下面的提示词复制给 AI，再按需修改目标。
+
+### 提示词模板
+
+```text
+我在维护一个黑苹果 OpenCore EFI 项目：
+- 机器：Lenovo M720q Tiny，i3-8100T，UHD 630，ALC235
+- SMBIOS：iMac20,1
+- 系统：macOS 26 Tahoe（Darwin 25.x）
+- OpenCore：1.0.8
+- 仓库结构：EFI/（实测脱敏 EFI）、profiles/*.plist（配置模板）、scripts/build.py（重建脚本）
+- 当前 boot-args：keepsyms=1 igfxagdc=0 vm_compressor=4 igfxonln=1 alcid=36
+- 音频：SimpleHDA 1.0.0 + AppleALC 1.9.9，alcid=36
+- 关键约束：keepsyms=1 不能删（SimpleHDA 依赖），删除后内置声卡会消失
+
+我的目标：<在这里写你要改什么>
+
+请：
+1. 说明需要改哪些文件、哪些字段；
+2. 给出可执行的修改（plist 字段名 + 值）；
+3. 提醒风险与验证方法（ocvalidate、重启验证）；
+4. 不要改动 PlatformInfo 的 SystemSerialNumber / MLB / SystemUUID / ROM（私有标识）。
+```
+
+### 常见任务与提示词要点
+
+| 任务 | 提示词要点 |
+| --- | --- |
+| 换 SMBIOS 机型 | “把 `PlatformInfo > Generic` 的 `SystemProductName` 改为 Macmini8,1，需要同步调整哪些字段？对核显/音频有无影响？” |
+| 调整音频 layout | “当前 `alcid=36`，若改用 layout 72 需要改哪里？如何验证内置扬声器？” |
+| 加 / 删 kext | “在 `Kernel > Add` 中增加 X.kext 需要哪些字段（BundlePath、PlistPath、ExecutablePath、MinKernel），顺序有什么要求？” |
+| 精简 boot-args | “只想保留最快启动，`boot-args` 哪些可以删？注意 `keepsyms=1` 必须保留。” |
+| 排查启动问题 | “OpenCore 卡在 `[EB|#LOG:...]`，日志片段如下，帮我定位是哪一步失败。” |
+
+### 安全与隐私
+
+- **不要让 AI 修改** `SystemSerialNumber`、`MLB`、`SystemUUID`、`ROM`（这些是本机私有的 SMBIOS 标识）
+- 修改前先备份：`cp config.plist config.plist.bak-$(date +%Y%m%d)`
+- 每次改完用 OpenCore 包内的 `ocvalidate` 校验
+- 先从 U 盘验证，再写入硬盘 EFI
+- 本仓库 `EFI/OC/config.plist` 的四项标识已清空，可以安全地贴给 AI 分析
+
 ## 目录与维护
 
 | 路径 | 用途 |
