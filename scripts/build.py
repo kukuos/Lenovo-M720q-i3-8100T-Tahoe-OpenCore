@@ -80,19 +80,10 @@ def main():
         work = pathlib.Path(work)
         for key, archive in archives.items():
             extract(archive, work / key)
-        upstream = next((work / 'upstream').glob('*/Tahoe/EFI_No_Broadcom_Fix'))
-        audio = next((work / 'audio').rglob('VoodooHDA.kext'))
         oc_package = work / 'opencore'
-        expected = json.loads((ROOT / 'binary-sha256.json').read_text())
-        source_paths = {}
-        for relative, sha in expected.items():
-            if relative.startswith('OC/Kexts/VoodooHDA.kext/'):
-                source = audio / relative.removeprefix('OC/Kexts/VoodooHDA.kext/')
-            else:
-                source = upstream / relative
-            if not source.is_file() or digest(source) != sha:
-                raise RuntimeError('Tested binary/resource mismatch: ' + relative)
-            source_paths[relative] = source
+        source_efi = ROOT / 'EFI'
+        if not source_efi.is_dir():
+            raise RuntimeError('Repository EFI/ directory is missing')
 
         identity = None
         system = platform.system()
@@ -110,10 +101,8 @@ def main():
 
         for profile, subdir in [('usb', pathlib.Path('EFI')), ('internal', pathlib.Path('HardDisk-Install/EFI'))]:
             efi = destination / subdir
-            for relative, source in source_paths.items():
-                target = efi / relative
-                target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copyfile(source, target)
+            for sub in ('Boot', 'OC'):
+                shutil.copytree(source_efi / sub, efi / sub, dirs_exist_ok=True)
             config = plistlib.loads((ROOT / 'profiles' / (profile + '.plist')).read_bytes())
             if identity:
                 config['PlatformInfo']['Generic'].update(identity)

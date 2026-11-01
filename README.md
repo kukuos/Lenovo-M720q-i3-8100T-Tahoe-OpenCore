@@ -62,8 +62,8 @@ py -3 scripts/build.py --generate-smbios
 
 macOS / Linux 对应命令为 `python3 scripts/build.py --generate-smbios`。工具会：
 
-1. 下载固定 commit 的原始 EFI 和 OpenCore 1.0.8，校验下载包（注意：`build.py` 目前仍按旧 VoodooHDA 流程编写，尚未适配 SimpleHDA，重建前需手动调整或直接参考 `EFI/` 目录）。
-2. 对照 `binary-sha256.json` 核对每个复用的 EFI 二进制和资源文件。
+1. 使用仓库内 `EFI/` 目录（2026-11-02 实测的脱敏 EFI），并下载 OpenCore 1.0.8 获取 macserial 与 ocvalidate。
+2. 从 `profiles/*.plist` 生成 USB 与硬盘版的 config。
 3. 用官方 macserial 生成一组新的 iMac20,1 序列号 / MLB，生成 UUID 和本地管理 ROM，并同时写入 USB 与硬盘版。
 4. 检查启用的 ACPI、kext、UEFI 驱动和工具路径，运行 OpenCore 1.0.8 的 ocvalidate，生成硬盘安装文件清单。
 
@@ -202,7 +202,6 @@ bash "/Volumes/TAHOE/Restore-USB-Boot.command"
 | `scripts/download_recovery.py` | 调用 macrecovery 获取恢复镜像 |
 | `scripts/*.command` | 在 macOS 安装硬盘 EFI、准备 / 恢复独立 Shell |
 | `dependencies.json` | 固定下载地址与下载包 SHA-256 |
-| `binary-sha256.json` | 本次已验证的 EFI 文件 SHA-256 |
 | `docs/TROUBLESHOOTING.md` | 本次安装与免 U 盘启动踩坑记录 |
 | `dist/USB` | 仅本地生成，不进入 Git |
 
