@@ -191,49 +191,63 @@ bash "/Volumes/TAHOE/Restore-USB-Boot.command"
 
 若临时 Shell 后还需要回到原 U 盘 OpenCore，可从独立 Shell 启动 U 盘 FS 对应的 `\EFI\BOOT\BOOTx64-before-shell.efi`。保留 U 盘与桌面的原 EFI 备份。
 
-## 用 AI 助手配置 / 调整 EFI
+## 用 AI 助手配置 EFI（提示词模板）
 
-本仓库的结构适合直接交给 AI 助手（ChatGPT / Claude / DeepSeek 等）做定制。把下面的提示词复制给 AI，再按需修改目标。
+黑苹果 EFI 配置的大部分工作是“硬件信息 → OpenCore 字段”的映射，很适合交给 AI 处理。下面这组提示词可以直接复制，按自己的机器修改即可，不依赖本仓库。
 
-### 提示词模板
+### 通用模板（全新配置或大改）
 
 ```text
-我在维护一个黑苹果 OpenCore EFI 项目：
-- 机器：Lenovo M720q Tiny，i3-8100T，UHD 630，ALC235
-- SMBIOS：iMac20,1
-- 系统：macOS 26 Tahoe（Darwin 25.x）
-- OpenCore：1.0.8
-- 仓库结构：EFI/（实测脱敏 EFI）、profiles/*.plist（配置模板）、scripts/build.py（重建脚本）
-- 当前 boot-args：keepsyms=1 igfxagdc=0 vm_compressor=4 igfxonln=1 alcid=36
-- 音频：SimpleHDA 1.0.0 + AppleALC 1.9.9，alcid=36
-- 关键约束：keepsyms=1 不能删（SimpleHDA 依赖），删除后内置声卡会消失
+请帮我配置一台黑苹果（OpenCore）电脑的 EFI。
 
-我的目标：<在这里写你要改什么>
+## 我的硬件
+- 机器/主板：<如 Lenovo M720q Tiny>
+- CPU：<如 Intel i3-8100T>
+- 核显 / 独显：<如 UHD 630 / 无独显>
+- 有线网卡：<如 Intel I219-V>
+- 声卡：<如 Realtek ALC235>
+- 存储：<如 NVMe SSD>
+- 目标系统：<如 macOS 26 Tahoe>
 
-请：
-1. 说明需要改哪些文件、哪些字段；
-2. 给出可执行的修改（plist 字段名 + 值）；
-3. 提醒风险与验证方法（ocvalidate、重启验证）；
-4. 不要改动 PlatformInfo 的 SystemSerialNumber / MLB / SystemUUID / ROM（私有标识）。
+## 我现在的状态
+- OpenCore 版本：<如 1.0.8 / 还没装>
+- 目前能启动吗：<能进系统 / 卡在某处 / 全新安装>
+- 现有问题：<如内置扬声器无声 / 睡眠秒醒 / USB 不识别>
+
+## 请输出
+1. 推荐 SMBIOS 机型与理由
+2. kext 清单（含加载顺序）和 boot-args
+3. DeviceProperties（核显 / 声卡）关键字段
+4. 需要的 ACPI SSDT
+5. 分步骤验证方法
+
+不确定的地方请明确说明，不要编造字段。
 ```
 
-### 常见任务与提示词要点
+### 按任务拆分的提示词
 
-| 任务 | 提示词要点 |
+| 场景 | 提示词开头 |
 | --- | --- |
-| 换 SMBIOS 机型 | “把 `PlatformInfo > Generic` 的 `SystemProductName` 改为 Macmini8,1，需要同步调整哪些字段？对核显/音频有无影响？” |
-| 调整音频 layout | “当前 `alcid=36`，若改用 layout 72 需要改哪里？如何验证内置扬声器？” |
-| 加 / 删 kext | “在 `Kernel > Add` 中增加 X.kext 需要哪些字段（BundlePath、PlistPath、ExecutablePath、MinKernel），顺序有什么要求？” |
-| 精简 boot-args | “只想保留最快启动，`boot-args` 哪些可以删？注意 `keepsyms=1` 必须保留。” |
-| 排查启动问题 | “OpenCore 卡在 `[EB|#LOG:...]`，日志片段如下，帮我定位是哪一步失败。” |
+| 全新安装 | “我要在 <硬件> 上安装 macOS <版本>，用 OpenCore 引导。请给出完整 EFI 配置步骤和验证清单。” |
+| 音频无声 | “我的声卡是 <codec>，macOS <版本>，AppleALC 已加载但没声音。layout-id / alcid 该怎么设？怎么验证？” |
+| 睡眠秒醒 | “黑苹果睡眠秒醒，`pmset -g assertions` 显示 <进程> 阻止睡眠。请分析原因和解决顺序。” |
+| USB 定制 | “主板是 <型号>，想用 USBToolBox 定制 USB 映射。请说明操作步骤和常见坑。” |
+| 启动卡住 | “OpenCore 卡在 <日志片段>，硬件配置如下。请帮我定位是哪一步失败。” |
+| U 盘迁移硬盘 | “想把 U 盘 EFI 迁到硬盘，同时保留 Windows 引导。请给出安全步骤。” |
 
-### 安全与隐私
+### 让回答更准的 5 个技巧
 
-- **不要让 AI 修改** `SystemSerialNumber`、`MLB`、`SystemUUID`、`ROM`（这些是本机私有的 SMBIOS 标识）
-- 修改前先备份：`cp config.plist config.plist.bak-$(date +%Y%m%d)`
-- 每次改完用 OpenCore 包内的 `ocvalidate` 校验
-- 先从 U 盘验证，再写入硬盘 EFI
-- 本仓库 `EFI/OC/config.plist` 的四项标识已清空，可以安全地贴给 AI 分析
+1. **给全硬件**：CPU 代号、芯片组、声卡 codec、网卡型号，比“我的电脑”有用得多
+2. **贴现有配置片段**：`boot-args`、`Kernel > Add`、`DeviceProperties` 的脱敏片段
+3. **贴日志**：OpenCore 的 `[EB|#LOG:...]` 或 macOS `log show` 片段
+4. **明确约束**：如“必须保留 `keepsyms=1`”“不能用 VoodooHDA”
+5. **要求分步**：一次只改一个变量，改完用 `ocvalidate` 校验并重启验证
+
+### 安全提醒
+
+- 贴配置前清空 `SystemSerialNumber`、`MLB`、`SystemUUID`、`ROM`
+- AI 的建议先用 `ocvalidate` 校验，再从 U 盘试启动
+- 改 EFI 前先备份，并保留一个能启动的 U 盘
 
 ## 目录与维护
 
