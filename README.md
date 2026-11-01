@@ -2,7 +2,7 @@
 
 联想 ThinkCentre M720q Tiny 的 Tahoe 安装与复用记录。针对 **i3-8100T、UHD 630、HDMI、有线网络、无需无线网卡**，2026-10-09 已完成实机安装，并确认拔掉 U 盘可以进入 macOS 桌面。
 
-本仓库提供脱敏配置、可重建 EFI 的工具和排错步骤。EFI 二进制从固定版本的上游下载，并对照实测文件的 SHA-256 校验；**机器序列号、MLB、UUID、ROM、个人日志和 macOS 镜像不上传**。构建结果在本机 `dist/USB` 中生成。
+本仓库提供脱敏配置、可重建 EFI 的工具和排错步骤，并附带一份 2026-11-02 实测的脱敏 EFI（`EFI/` 目录，SimpleHDA 音频方案，可直接使用或参考）。**机器序列号、MLB、UUID、ROM、个人日志和 macOS 镜像不上传**。
 
 ## 实测硬件与功能
 
@@ -15,9 +15,9 @@
 | 硬盘 | 用户提供型号：悉硕 S500 128GB；系统识别 `SSD 128GB`，NVMe / PCI-Express，128035676160 字节 |
 | 显示 | HDMI，1920×1080 @ 60Hz，1536MB 动态显存，Metal 3；鼠标与窗口拖动流畅 |
 | 有线网络 | 已确认可用；沿用上游 IntelMausiEthernet 驱动 |
-| 内置扬声器 / 耳机 | 已确认出声，使用 VoodooHDA 3.6.9-alpha |
+| 内置扬声器 / 耳机 | 已确认出声，使用 SimpleHDA 1.0.0 + AppleALC 1.9.9（`alcid=36`） |
 | 睡眠 / 唤醒 | 实测风扇停止；短按电源后风扇恢复，移动鼠标后 HDMI 恢复画面 |
-| 免 U 盘启动 | 已确认拔掉 U 盘进入桌面；配置等待时间 10 秒 |
+| 免 U 盘启动 | 已确认拔掉 U 盘进入桌面；配置等待时间 5 秒 |
 | USB | 本次安装盘、鼠标、键盘可用；未逐一验证所有端口 |
 | Wi-Fi / 蓝牙 | 不作为本项目目标，未验证 |
 | HDMI 音频 / DP / 多屏 / DRM / Apple 服务 | 未验证 |
@@ -27,14 +27,14 @@
 ## 配置重点
 
 - OpenCore **1.0.8**；SMBIOS **iMac20,1**。本次 Macmini8,1 配置遇到安装更新准备错误，改为 iMac20,1 后继续安装成功。
-- USB 与硬盘版的 `Timeout=10`、`AllowSetDefault=true`；USB `LauncherOption=Disabled`，硬盘 `LauncherOption=Full`；`RequestBootVarRouting=true`。
+- USB 与硬盘版的 `Timeout=5`、`AllowSetDefault=true`；USB `LauncherOption=Disabled`，硬盘 `LauncherOption=Full`；`RequestBootVarRouting=true`。
 - 核显平台 `07009B3E`，沿用上游 HDMI connector 映射；`framebuffer-stolenmem=00003001`、`framebuffer-fbmem=00009000`。最终配置不含 `-igfxvesa`。
 - 本机未手动解锁 CFG Lock，保留 `AppleXcpmCfgLock`、`AppleCpuPmCfgLock` 兼容设置。不要套用其他 BIOS 版本的解锁偏移。
 - 沿用上游 USBToolBox + UTBMap 映射；别的主机、端口布局和外接设备需重新核对。
-- 音频禁用 AppleALC，启用 **VoodooHDA 3.6.9-alpha / 88f1f24**，通过 EFI 注入。本项目没有把音频驱动写入系统卷。旧版 3.6.8 不作为本配置的替代品。
-- 当前配置为实测兼容配置：`SecureBootModel=Disabled`、`csr-active-config=03080000`，并保留 `amfi_get_out_of_my_way=1` 等调试 / 兼容参数。**未完成完整 SIP / AMFI 恢复与系统安全收紧的验证**。
+- 音频使用 **SimpleHDA 1.0.0 + AppleALC 1.9.9**（Lilu 插件恢复 AppleHDA 栈），`alcid=36` 驱动内置小喇叭；**必须保留 `keepsyms=1`**，删除后 `AppleHDAController` 不会注册、内置声卡消失。详见「2026-11-02 更新：SimpleHDA 音频方案」。
+- 当前配置为实测兼容配置：`SecureBootModel=Disabled`、`csr-active-config=03080000`；用 **AMFIPass.kext** 替代 `amfi_get_out_of_my_way=1`，第三方 App 麦克风权限正常。**未完成完整 SIP / AMFI 恢复与系统安全收紧的验证**。
 
-Tahoe 已移除 AppleHDA，原 AppleALC 方案不能直接提供模拟音频，见 [Dortania Tahoe 说明](https://dortania.github.io/OpenCore-Install-Guide/extras/tahoe.html)。本仓库选用的 [VoodooHDA 3.6.9-alpha](https://github.com/CloverHackyColor/VoodooHDA/releases/tag/v3.6.9-alpha) 是预发布版本，出声已实测，更新后兼容性需重新验证。
+Tahoe 已移除 AppleHDA，本仓库改用 [SimpleHDA](https://github.com/laobamac/SimpleHDA) 1.0.0 恢复 AppleHDA 600.2 栈，见 [Dortania Tahoe 说明](https://dortania.github.io/OpenCore-Install-Guide/extras/tahoe.html)。SimpleHDA 依赖 `keepsyms=1`，删除后内置声卡不会注册。
 
 ## 2026-11-02 更新：SimpleHDA 音频方案
 
@@ -62,7 +62,7 @@ py -3 scripts/build.py --generate-smbios
 
 macOS / Linux 对应命令为 `python3 scripts/build.py --generate-smbios`。工具会：
 
-1. 下载固定 commit 的原始 EFI、OpenCore 1.0.8 和固定版本 VoodooHDA，校验下载包。
+1. 下载固定 commit 的原始 EFI 和 OpenCore 1.0.8，校验下载包（注意：`build.py` 目前仍按旧 VoodooHDA 流程编写，尚未适配 SimpleHDA，重建前需手动调整或直接参考 `EFI/` 目录）。
 2. 对照 `binary-sha256.json` 核对每个复用的 EFI 二进制和资源文件。
 3. 用官方 macserial 生成一组新的 iMac20,1 序列号 / MLB，生成 UUID 和本地管理 ROM，并同时写入 USB 与硬盘版。
 4. 检查启用的 ACPI、kext、UEFI 驱动和工具路径，运行 OpenCore 1.0.8 的 ocvalidate，生成硬盘安装文件清单。
@@ -195,6 +195,7 @@ bash "/Volumes/TAHOE/Restore-USB-Boot.command"
 
 | 路径 | 用途 |
 | --- | --- |
+| `EFI/` | 2026-11-02 实测的脱敏 EFI（SimpleHDA 方案，可直接使用或参考） |
 | `profiles/usb.plist` | 脱敏 USB 配置模板 |
 | `profiles/internal.plist` | 脱敏硬盘配置模板，启用引导项注册 |
 | `scripts/build.py` | 下载固定依赖、生成身份、构建并验证 EFI |
@@ -205,7 +206,7 @@ bash "/Volumes/TAHOE/Restore-USB-Boot.command"
 | `docs/TROUBLESHOOTING.md` | 本次安装与免 U 盘启动踩坑记录 |
 | `dist/USB` | 仅本地生成，不进入 Git |
 
-更新 EFI 前备份硬盘 EFI，保留该机器的 SMBIOS 四项标识，用相同版本的 ocvalidate 校验，先从备用 U 盘验证。安装更新和音频预发布驱动升级尚未完成回归验证。
+更新 EFI 前备份硬盘 EFI，保留该机器的 SMBIOS 四项标识，用相同版本的 ocvalidate 校验，先从备用 U 盘验证。系统更新与 SimpleHDA 升级尚未完成回归验证。
 
 本仓库的重建工具已在 Windows 上运行并核对生成文件；硬盘复制工具和独立 Shell 操作已在这台 M720q 上实测。重建工具的 macOS / Linux 分支，以及其他硬件组合，尚未实测。
 
@@ -213,4 +214,4 @@ bash "/Volumes/TAHOE/Restore-USB-Boot.command"
 
 配置与基础组件源自 [Golevka2001/Lenovo-M720Q-OpenCore-EFI](https://github.com/Golevka2001/Lenovo-M720Q-OpenCore-EFI)，固定 commit `a34973abedbef30738098ec7a852f65aad892339` 的 `Tahoe/EFI_No_Broadcom_Fix`。本机调整了 SMBIOS、核显内存参数、Tahoe 音频和硬盘启动流程。原作者使用 i5-9500T / 无线网卡，本仓库的已验证范围以表格为准。
 
-另感谢 [OpenCorePkg](https://github.com/acidanthera/OpenCorePkg)、[VoodooHDA](https://github.com/CloverHackyColor/VoodooHDA)、[WhateverGreen](https://github.com/acidanthera/WhateverGreen)、[USBToolBox](https://github.com/USBToolBox) 和 [Dortania](https://dortania.github.io/)。第三方组件由构建工具从上游获取，权利与许可证归各自项目，本仓库不重新授权这些组件。
+另感谢 [OpenCorePkg](https://github.com/acidanthera/OpenCorePkg)、[SimpleHDA](https://github.com/laobamac/SimpleHDA)、[VoodooHDA](https://github.com/CloverHackyColor/VoodooHDA)、[WhateverGreen](https://github.com/acidanthera/WhateverGreen)、[USBToolBox](https://github.com/USBToolBox) 和 [Dortania](https://dortania.github.io/)。第三方组件由构建工具从上游获取，权利与许可证归各自项目，本仓库不重新授权这些组件。
