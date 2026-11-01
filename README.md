@@ -36,6 +36,20 @@
 
 Tahoe 已移除 AppleHDA，原 AppleALC 方案不能直接提供模拟音频，见 [Dortania Tahoe 说明](https://dortania.github.io/OpenCore-Install-Guide/extras/tahoe.html)。本仓库选用的 [VoodooHDA 3.6.9-alpha](https://github.com/CloverHackyColor/VoodooHDA/releases/tag/v3.6.9-alpha) 是预发布版本，出声已实测，更新后兼容性需重新验证。
 
+## 2026-11-02 更新：SimpleHDA 音频方案
+
+本次更新把音频栈从 VoodooHDA 切换为 **SimpleHDA 1.0.0 + AppleALC 1.9.9**，适配 macOS 26 Tahoe（系统已移除 AppleHDA）：
+
+- 音频方案：SimpleHDA（Lilu 插件，恢复 AppleHDA 600.2 栈）+ AppleALC 1.9.9 + `alcid=36`；布局 36 可驱动内置小喇叭
+- **`keepsyms=1` 必须保留**：SimpleHDA 依赖它，删除后 `AppleHDAController` 不会注册，内置声卡直接消失
+- 移除 `amfi_get_out_of_my_way=1`，改用 **AMFIPass.kext**，修复 tccd 拒绝第三方 App 麦克风权限的问题
+- 移除 `VoodooHDA.kext`、`XHCI-unsupported.kext`（VoodooHDA 静态链接 `IOAudioFamily` 会破坏 `AppleUSBAudio` 依赖）
+- `boot-args` 精简为 `keepsyms=1 igfxagdc=0 vm_compressor=4 igfxonln=1 alcid=36`
+- 启动优化：`AppleDebug`/`ApplePanic=False`、`Target=0`、`HideAuxiliary=True`、`Timeout=5`、`EnableVmx=True`、`PanicNoKextDump=True`
+- 尝试过 AudioDxe 开机音，因与 ALC235 兼容性差且 OpenCore 无法稳定写日志，已移除并恢复默认
+
+> 本仓库不保存任何机器标识：`profiles/*.plist` 使用 `REPLACE_ME` 占位，`EFI/OC/config.plist` 中的序列号、MLB、UUID、ROM 均已清空。使用 `scripts/build.py --generate-smbios` 为你的机器生成新标识。
+
 ## 1. 在自己电脑上重建 EFI
 
 安装 Git 和 Python **3.10 或更高版本**，在 Windows PowerShell 中执行：
