@@ -50,6 +50,64 @@ Tahoe 已移除 AppleHDA，本仓库改用 [SimpleHDA](https://github.com/laobam
 
 > 本仓库不保存任何机器标识：`profiles/*.plist` 使用 `REPLACE_ME` 占位，`EFI/OC/config.plist` 中的序列号、MLB、UUID、ROM 均已清空。使用 `scripts/build.py --generate-smbios` 为你的机器生成新标识。
 
+## 用 AI 助手配置 EFI（提示词模板）
+
+黑苹果 EFI 配置的大部分工作是“硬件信息 → OpenCore 字段”的映射，很适合交给 AI 处理。下面这组提示词可以直接复制，按自己的机器修改即可，不依赖本仓库。
+
+### 通用模板（全新配置或大改）
+
+```text
+请帮我配置一台黑苹果（OpenCore）电脑的 EFI。
+
+## 我的硬件
+- 机器/主板：<如 Lenovo M720q Tiny>
+- CPU：<如 Intel i3-8100T>
+- 核显 / 独显：<如 UHD 630 / 无独显>
+- 有线网卡：<如 Intel I219-V>
+- 声卡：<如 Realtek ALC235>
+- 存储：<如 NVMe SSD>
+- 目标系统：<如 macOS 26 Tahoe>
+
+## 我现在的状态
+- OpenCore 版本：<如 1.0.8 / 还没装>
+- 目前能启动吗：<能进系统 / 卡在某处 / 全新安装>
+- 现有问题：<如内置扬声器无声 / 睡眠秒醒 / USB 不识别>
+
+## 请输出
+1. 推荐 SMBIOS 机型与理由
+2. kext 清单（含加载顺序）和 boot-args
+3. DeviceProperties（核显 / 声卡）关键字段
+4. 需要的 ACPI SSDT
+5. 分步骤验证方法
+
+不确定的地方请明确说明，不要编造字段。
+```
+
+### 按任务拆分的提示词
+
+| 场景 | 提示词开头 |
+| --- | --- |
+| 全新安装 | “我要在 <硬件> 上安装 macOS <版本>，用 OpenCore 引导。请给出完整 EFI 配置步骤和验证清单。” |
+| 音频无声 | “我的声卡是 <codec>，macOS <版本>，AppleALC 已加载但没声音。layout-id / alcid 该怎么设？怎么验证？” |
+| 睡眠秒醒 | “黑苹果睡眠秒醒，`pmset -g assertions` 显示 <进程> 阻止睡眠。请分析原因和解决顺序。” |
+| USB 定制 | “主板是 <型号>，想用 USBToolBox 定制 USB 映射。请说明操作步骤和常见坑。” |
+| 启动卡住 | “OpenCore 卡在 <日志片段>，硬件配置如下。请帮我定位是哪一步失败。” |
+| U 盘迁移硬盘 | “想把 U 盘 EFI 迁到硬盘，同时保留 Windows 引导。请给出安全步骤。” |
+
+### 让回答更准的 5 个技巧
+
+1. **给全硬件**：CPU 代号、芯片组、声卡 codec、网卡型号，比“我的电脑”有用得多
+2. **贴现有配置片段**：`boot-args`、`Kernel > Add`、`DeviceProperties` 的脱敏片段
+3. **贴日志**：OpenCore 的 `[EB|#LOG:...]` 或 macOS `log show` 片段
+4. **明确约束**：如“必须保留 `keepsyms=1`”“不能用 VoodooHDA”
+5. **要求分步**：一次只改一个变量，改完用 `ocvalidate` 校验并重启验证
+
+### 安全提醒
+
+- 贴配置前清空 `SystemSerialNumber`、`MLB`、`SystemUUID`、`ROM`
+- AI 的建议先用 `ocvalidate` 校验，再从 U 盘试启动
+- 改 EFI 前先备份，并保留一个能启动的 U 盘
+
 ## 1. 在自己电脑上重建 EFI
 
 安装 Git 和 Python **3.10 或更高版本**，在 Windows PowerShell 中执行：
@@ -190,64 +248,6 @@ bash "/Volumes/TAHOE/Restore-USB-Boot.command"
 ```
 
 若临时 Shell 后还需要回到原 U 盘 OpenCore，可从独立 Shell 启动 U 盘 FS 对应的 `\EFI\BOOT\BOOTx64-before-shell.efi`。保留 U 盘与桌面的原 EFI 备份。
-
-## 用 AI 助手配置 EFI（提示词模板）
-
-黑苹果 EFI 配置的大部分工作是“硬件信息 → OpenCore 字段”的映射，很适合交给 AI 处理。下面这组提示词可以直接复制，按自己的机器修改即可，不依赖本仓库。
-
-### 通用模板（全新配置或大改）
-
-```text
-请帮我配置一台黑苹果（OpenCore）电脑的 EFI。
-
-## 我的硬件
-- 机器/主板：<如 Lenovo M720q Tiny>
-- CPU：<如 Intel i3-8100T>
-- 核显 / 独显：<如 UHD 630 / 无独显>
-- 有线网卡：<如 Intel I219-V>
-- 声卡：<如 Realtek ALC235>
-- 存储：<如 NVMe SSD>
-- 目标系统：<如 macOS 26 Tahoe>
-
-## 我现在的状态
-- OpenCore 版本：<如 1.0.8 / 还没装>
-- 目前能启动吗：<能进系统 / 卡在某处 / 全新安装>
-- 现有问题：<如内置扬声器无声 / 睡眠秒醒 / USB 不识别>
-
-## 请输出
-1. 推荐 SMBIOS 机型与理由
-2. kext 清单（含加载顺序）和 boot-args
-3. DeviceProperties（核显 / 声卡）关键字段
-4. 需要的 ACPI SSDT
-5. 分步骤验证方法
-
-不确定的地方请明确说明，不要编造字段。
-```
-
-### 按任务拆分的提示词
-
-| 场景 | 提示词开头 |
-| --- | --- |
-| 全新安装 | “我要在 <硬件> 上安装 macOS <版本>，用 OpenCore 引导。请给出完整 EFI 配置步骤和验证清单。” |
-| 音频无声 | “我的声卡是 <codec>，macOS <版本>，AppleALC 已加载但没声音。layout-id / alcid 该怎么设？怎么验证？” |
-| 睡眠秒醒 | “黑苹果睡眠秒醒，`pmset -g assertions` 显示 <进程> 阻止睡眠。请分析原因和解决顺序。” |
-| USB 定制 | “主板是 <型号>，想用 USBToolBox 定制 USB 映射。请说明操作步骤和常见坑。” |
-| 启动卡住 | “OpenCore 卡在 <日志片段>，硬件配置如下。请帮我定位是哪一步失败。” |
-| U 盘迁移硬盘 | “想把 U 盘 EFI 迁到硬盘，同时保留 Windows 引导。请给出安全步骤。” |
-
-### 让回答更准的 5 个技巧
-
-1. **给全硬件**：CPU 代号、芯片组、声卡 codec、网卡型号，比“我的电脑”有用得多
-2. **贴现有配置片段**：`boot-args`、`Kernel > Add`、`DeviceProperties` 的脱敏片段
-3. **贴日志**：OpenCore 的 `[EB|#LOG:...]` 或 macOS `log show` 片段
-4. **明确约束**：如“必须保留 `keepsyms=1`”“不能用 VoodooHDA”
-5. **要求分步**：一次只改一个变量，改完用 `ocvalidate` 校验并重启验证
-
-### 安全提醒
-
-- 贴配置前清空 `SystemSerialNumber`、`MLB`、`SystemUUID`、`ROM`
-- AI 的建议先用 `ocvalidate` 校验，再从 U 盘试启动
-- 改 EFI 前先备份，并保留一个能启动的 U 盘
 
 ## 目录与维护
 
